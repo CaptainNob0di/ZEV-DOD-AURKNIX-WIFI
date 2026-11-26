@@ -4,6 +4,11 @@
 _get_file_already_downloaded() {
   [ ! -f "${PACKAGE}" -o ! -f "${STAMP_URL}" -o ! -f "${STAMP_SHA}" ] && return 1
   [ -n "${PKG_SHA256}" -a "$(cat ${STAMP_SHA} 2>/dev/null)" != "${PKG_SHA256}" ] && return 1
+  if [ -n "${PKG_SHA512}" ]; then
+    local actual_sha512
+    actual_sha512=$(sha512sum "${PACKAGE}") || return 1
+    [ "${actual_sha512%% *}" = "${PKG_SHA512}" ] || return 1
+  fi
   return 0
 }
 
@@ -35,12 +40,25 @@ then
   PKG_URLS="${PKG_URL} ${PACKAGE_MIRROR}"
 fi
 
+if [ -n "${PKG_SOURCE_FALLBACK}" ]; then
+  PKG_URLS="${PKG_URL} ${PKG_SOURCE_FALLBACK} ${PACKAGE_MIRROR}"
+fi
+
 NBWGET=10
 while [ ${NBWGET} -gt 0 ]; do
   for url in ${PKG_URLS}; do
     rm -f "${PACKAGE}"
     if ${WGET_CMD} "${url}"; then
       CALC_SHA256=$(sha256sum "${PACKAGE}" | cut -d" " -f1)
+
+      if [ -n "${PKG_SHA512}" ]; then
+        CALC_SHA512=$(sha512sum "${PACKAGE}") || continue
+        CALC_SHA512="${CALC_SHA512%% *}"
+        if [ "${PKG_SHA512}" != "${CALC_SHA512}" ]; then
+          build_msg "CLR_WARNING" "WARNING" "SHA512 mismatch for ${PKG_NAME}: got ${CALC_SHA512} wanted ${PKG_SHA512}"
+          continue
+        fi
+      fi
 
       [ -z "${PKG_SHA256}" -o "${PKG_SHA256}" = "${CALC_SHA256}" ] && break 2
 
