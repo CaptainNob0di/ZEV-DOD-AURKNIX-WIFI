@@ -205,6 +205,9 @@ jobs:
           echo "build_devices=$BUILD_DEVICES" >> $GITHUB_OUTPUT
 
   build-docker:
+    permissions:
+      contents: read
+      packages: write
     if: needs.set-envs.outputs.SHOULD_BUILD == 'yes' && (github.event_name != 'schedule' || (github.repository == 'AveyondFly/distribution_rocknix' && github.ref_name == 'next'))
     name: Docker
     needs: set-envs
@@ -263,6 +266,10 @@ jobs:
     secrets: inherit
 
   build-devices:
+    permissions:
+      actions: write
+      contents: read
+      packages: read
     if: needs.set-envs.outputs.SHOULD_BUILD == 'yes' && ((github.event_name != 'schedule') || (github.repository == 'AveyondFly/distribution_rocknix' && github.ref_name == 'next'))
     name: Build Devices
     needs:
@@ -287,6 +294,9 @@ jobs:
       OFFICIAL: ${{ needs.set-envs.outputs.OFFICIAL }}
 
   rerun-failed-jobs:
+    permissions:
+      actions: write
+      contents: read
     if: always() && !cancelled() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) && fromJSON(github.run_attempt) < 3 && github.ref_name == 'next' && (github.event_name != 'schedule' || github.repository == 'AveyondFly/distribution_rocknix')
     needs: build-devices
     runs-on: ubuntu-24.04
